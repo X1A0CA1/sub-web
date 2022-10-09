@@ -4,7 +4,7 @@
       <el-col>
         <el-card>
           <div slot="header">
-            Subscription Converter
+            在线订阅转换
             <svg-icon icon-class="github" style="margin-left: 20px" @click="goToProject" />
 
             <div style="display: inline-block; position:absolute; right: 20px">{{ backendVersion }}</div>
@@ -32,14 +32,12 @@
 
               <div v-if="advanced === '2'">
                 <el-form-item label="后端地址:">
-                  <el-autocomplete
-                    style="width: 100%"
-                    v-model="form.customBackend"
-                    :fetch-suggestions="backendSearch"
-                    placeholder="动动小手，（建议）自行搭建后端服务。例：http://127.0.0.1:25500/sub?"
-                  >
-                    <el-button slot="append" @click="gotoGayhub" icon="el-icon-link">前往项目仓库</el-button>
-                  </el-autocomplete>
+                <el-select v-model="form.backendOption" style="width: 100%">
+                  <el-option v-for="(v, k) in options.backendOptions" :key="k" :label="k" :value="v"></el-option>
+                </el-select>
+                </el-form-item>
+                <el-form-item label="后端密码:">
+                  <el-input v-model="form.backendToken" placeholder="某些私有的订阅转换会要求后端密码（可选）" />
                 </el-form-item>
                 <el-form-item label="远程配置:">
                   <el-select
@@ -64,13 +62,13 @@
                     <el-button slot="append" @click="gotoRemoteConfig" icon="el-icon-link">配置示例</el-button>
                   </el-select>
                 </el-form-item>
-                <el-form-item label="Include:">
+                <el-form-item label="包含节点:">
                   <el-input v-model="form.includeRemarks" placeholder="节点名包含的关键字，支持正则" />
                 </el-form-item>
-                <el-form-item label="Exclude:">
+                <el-form-item label="排除节点:">
                   <el-input v-model="form.excludeRemarks" placeholder="节点名不包含的关键字，支持正则" />
                 </el-form-item>
-                <el-form-item label="FileName:">
+                <el-form-item label="Filename:">
                   <el-input v-model="form.filename" placeholder="返回的订阅文件名" />
                 </el-form-item>
                 <el-form-item label-width="0px">
@@ -80,22 +78,25 @@
                     </el-col>
                     <el-popover placement="bottom" v-model="form.extraset">
                       <el-row>
-                        <el-checkbox v-model="form.emoji" label="Emoji"></el-checkbox>
+                        <el-checkbox v-model="form.emoji" label="节点名是否包含 Emoji"></el-checkbox>
                       </el-row>
                       <el-row>
-                        <el-checkbox v-model="form.scv" label="跳过证书验证"></el-checkbox>
+                        <el-checkbox v-model="form.addemoji" label="是否在节点前插入 Emoji"></el-checkbox>
+                      </el-row>
+                      <el-row>
+                        <el-checkbox v-model="form.scv" label="跳过 TLS 证书检查"></el-checkbox>
                       </el-row>
                       <el-row>
                         <el-checkbox v-model="form.udp" @change="needUdp = true" label="启用 UDP"></el-checkbox>
                       </el-row>
                       <el-row>
-                        <el-checkbox v-model="form.appendType" label="节点类型"></el-checkbox>
+                        <el-checkbox v-model="form.appendType" label="在节点前插入节点类型，如 [SS]"></el-checkbox>
                       </el-row>
                       <el-row>
                         <el-checkbox v-model="form.sort" label="排序节点"></el-checkbox>
                       </el-row>
                       <el-row>
-                        <el-checkbox v-model="form.fdn" label="过滤非法节点"></el-checkbox>
+                        <el-checkbox v-model="form.fdn" label="过滤目标类型不支持的节点"></el-checkbox>
                       </el-row>
                       <el-button slot="reference">更多选项</el-button>
                     </el-popover>
@@ -177,6 +178,27 @@
                   :disabled="customSubUrl.length === 0"
                 >一键导入Clash</el-button>
               </el-form-item>
+
+              <el-form-item label-width="0px" style="text-align: center">
+              <el-button 
+                style="width: 120px" 
+                type="success" 
+                @click="getSubsOutput"
+                :disabled="customSubUrl.length === 0"
+                :loading="loading">获取 yml 文本</el-button>
+                
+              </el-form-item>
+
+                <el-form-item label="Raw:">
+                  <el-input 
+                    v-model="form.subsOutput" 
+                    type="textarea"
+                    placeholder="输出订阅内容"
+                    :autosize="{ minRows: 1, maxRows: 1000 }"
+                    :disabled="customSubUrl.length === 0"
+                    @blur="saveSubUrl" 
+                  />
+                </el-form-item>
             </el-form>
           </el-container>
         </el-card>
@@ -255,75 +277,18 @@ export default {
           ClashR: "clashr",
           Surge2: "surge&ver=2",
         },
-        backendOptions: [{ value: "http://127.0.0.1:25500/sub?" }],
+        backendOptions: {
+          xiaocai: "https://sublink.xiaocai.win/sub?",
+          ozz: "https://s.jjyy.ml/sub?",
+        },
         remoteConfig: [
           {
-            label: "universal",
+            label: "特殊配置",
             options: [
               {
-                label: "No-Urltest",
+                label: "空配置",
                 value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/universal/no-urltest.ini"
-              },
-              {
-                label: "Urltest",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/universal/urltest.ini"
-              }
-            ]
-          },
-          {
-            label: "customized",
-            options: [
-              {
-                label: "Maying",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/customized/maying.ini"
-              },
-              {
-                label: "Ytoo",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/customized/ytoo.ini"
-              },
-              {
-                label: "FlowerCloud",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/customized/flowercloud.ini"
-              },
-              {
-                label: "Nexitally",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/customized/nexitally.ini"
-              },
-              {
-                label: "SoCloud",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/customized/socloud.ini"
-              },
-              {
-                label: "ARK",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/customized/ark.ini"
-              },
-              {
-                label: "ssrCloud",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/customized/ssrcloud.ini"
-              }
-            ]
-          },
-          {
-            label: "Special",
-            options: [
-              {
-                label: "NeteaseUnblock(仅规则，No-Urltest)",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/special/netease.ini"
-              },
-              {
-                label: "Basic(仅GEOIP CN + Final)",
-                value:
-                  "https://cdn.jsdelivr.net/gh/SleepyHeeead/subconverter-config@master/remote-config/special/basic.ini"
+                  "https://cdn.jsdelivr.net/gh/X1A0CA1/clash-rules@main/null.ini"
               }
             ]
           }
@@ -332,18 +297,21 @@ export default {
       form: {
         sourceSubUrl: "",
         clientType: "",
-        customBackend: "",
-        remoteConfig: "",
+        backendOption: "",
+        backendToken: "",
+        remoteConfig: "https://cdn.jsdelivr.net/gh/X1A0CA1/clash-rules@main/null.ini",
         excludeRemarks: "",
         includeRemarks: "",
         filename: "",
         emoji: true,
+        addemoji: true,
         nodeList: false,
         extraset: false,
+        classic: true,
         sort: false,
         udp: false,
         tfo: false,
-        scv: true,
+        scv: false,
         fdn: false,
         appendType: false,
         insert: false, // 是否插入默认订阅的节点，对应配置项 insert_url
@@ -363,6 +331,7 @@ export default {
       loading: false,
       customSubUrl: "",
       curtomShortSubUrl: "",
+      subsOutput: "",
 
       dialogUploadConfigVisible: false,
       uploadConfig: "",
@@ -374,7 +343,7 @@ export default {
     };
   },
   created() {
-    document.title = "Subscription Converter";
+    document.title = "订阅转换";
     this.isPC = this.$getOS().isPc;
 
     // 获取 url cache
@@ -384,6 +353,7 @@ export default {
   },
   mounted() {
     this.form.clientType = "clash";
+    this.form.backendOption = "https://sublink.xiaocai.win/sub?";
     this.notify();
     this.getBackendVersion();
   },
@@ -432,9 +402,9 @@ export default {
       }
 
       let backend =
-        this.form.customBackend === ""
+        this.form.backendOption === ""
           ? defaultBackend
-          : this.form.customBackend;
+          : this.form.backendOption;
 
       let sourceSub = this.form.sourceSubUrl;
       sourceSub = sourceSub.replace(/(\n|\r|\n\r)/g, "|");
@@ -449,6 +419,10 @@ export default {
         this.form.insert;
 
       if (this.advanced === "2") {
+        if (this.form.backendToken !== "") {
+          this.customSubUrl += 
+            "&token=" + this.form.backendToken.toString();
+        }
         if (this.form.remoteConfig !== "") {
           this.customSubUrl +=
             "&config=" + encodeURIComponent(this.form.remoteConfig);
@@ -473,8 +447,12 @@ export default {
         this.customSubUrl +=
           "&emoji=" +
           this.form.emoji.toString() +
+          "&addemoji=" + 
+          this.form.addemoji.toString() +
           "&list=" +
           this.form.nodeList.toString() +
+          "&classic=" +
+          this.form.classic.toString() + 
           "&tfo=" +
           this.form.tfo.toString() +
           "&scv=" +
@@ -485,6 +463,8 @@ export default {
           this.form.sort.toString();
 
         if (this.needUdp) {
+          this.customSubUrl += "&udp=" + this.form.udp.toString()
+        } else {
           this.customSubUrl += "&udp=" + this.form.udp.toString()
         }
 
@@ -537,9 +517,25 @@ export default {
           this.loading = false;
         });
     },
+
+    getSubsOutput() {
+      if (this.customSubUrl === "") {
+        this.$message.warning("请先生成订阅链接，再获取对应的结果");
+        return false;
+      }
+
+      this.loading = true;
+
+      this.$axios
+      .get(this.customSubUrl)
+      .then(res => (this.form.subsOutput = res.data))
+      .finally(() => {
+        this.loading = false;
+      });
+    },
+
     notify() {
       const h = this.$createElement;
-
       this.$notify({
         title: "隐私提示",
         type: "warning",
@@ -589,16 +585,6 @@ export default {
         .finally(() => {
           this.loading = false;
         });
-    },
-    backendSearch(queryString, cb) {
-      let backends = this.options.backendOptions;
-
-      let results = queryString
-        ? backends.filter(this.createFilter(queryString))
-        : backends;
-
-      // 调用 callback 返回建议列表的数据
-      cb(results);
     },
     createFilter(queryString) {
       return candidate => {
