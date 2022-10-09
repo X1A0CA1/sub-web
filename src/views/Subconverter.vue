@@ -21,7 +21,7 @@
                   type="textarea"
                   rows="3"
                   placeholder="支持订阅或ss/ssr/vmess链接，多个链接每行一个或用 | 分隔"
-                  @blur="saveSubUrl"
+                  @blur="saveSubInfo"
                 />
               </el-form-item>
               <el-form-item label="客户端:">
@@ -37,7 +37,10 @@
                 </el-select>
                 </el-form-item>
                 <el-form-item label="后端密码:">
-                  <el-input v-model="form.backendToken" placeholder="某些私有的订阅转换会要求后端密码（可选）" />
+                  <el-input v-model="form.backendToken" 
+                  placeholder="某些私有的订阅转换会要求后端密码，至少我的是这样。（可选）" 
+                  @blur="saveSubInfo"
+                  />
                 </el-form-item>
                 <el-form-item label="远程配置:">
                   <el-select
@@ -196,7 +199,6 @@
                     placeholder="输出订阅内容"
                     :autosize="{ minRows: 1, maxRows: 1000 }"
                     :disabled="customSubUrl.length === 0"
-                    @blur="saveSubUrl" 
                   />
                 </el-form-item>
             </el-form>
@@ -349,6 +351,7 @@ export default {
     // 获取 url cache
     if (process.env.VUE_APP_USE_STORAGE === 'true') {
       this.form.sourceSubUrl = this.getLocalStorageItem('sourceSubUrl')
+      this.form.backendToken = this.getLocalStorageItem('backendToken')
     }
   },
   mounted() {
@@ -603,9 +606,12 @@ export default {
           this.backendVersion = this.backendVersion.replace("subconverter", "");
         });
     },
-    saveSubUrl() {
+    saveSubInfo() {
       if (this.form.sourceSubUrl !== '') {
         this.setLocalStorageItem('sourceSubUrl', this.form.sourceSubUrl)
+      }
+      if (this.form.backendToken !== '') {
+        this.setLocalStorageItem('backendToken', this.form.backendToken)
       }
     },
     getLocalStorageItem(itemKey) {
