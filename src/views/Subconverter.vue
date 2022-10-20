@@ -282,7 +282,8 @@ export default {
         backendOptions: {
           "XiaoCai (需要密码)": "https://sublink.xiaocai.win/sub?",
           "ozz (需要密码)": "https://s.jjyy.ml/sub?",
-          "XiaoCai (公开后端)": "https://sublink.public.xiaocai.win/sub?"
+          "XiaoCai (公开后端)": "https://sublink.public.xiaocai.win/sub?",
+          "本地后端（127.0.0.1:25500）": "http://127.0.0.1:25500/sub?"
         },
         remoteConfig: [
           {
