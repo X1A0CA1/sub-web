@@ -637,12 +637,15 @@ export default {
         this.$message.warning("请先生成订阅链接，再获取对应的结果");
         return false;
       }
-
       this.loading = true;
-
       this.$axios
       .get(this.customSubUrl)
-      .then(res => (this.form.subsOutput = res.data))
+      .then(res => {
+        (this.form.subsOutput = res.data);
+      })
+      .catch(() => {
+        this.$message.error("获取订阅细则失败")
+      })
       .finally(() => {
         this.loading = false;
       });
